@@ -10,10 +10,12 @@ import package ;
 import virtual-target ;
 
 BOOST_ROOT = [ modules.peek : BOOST_ROOT ] ;
+SQLITE_PATH = [ modules.peek : SQLITE_PATH ] ;
 CXXFLAGS = [ modules.peek : CXXFLAGS ] ;
 LDFLAGS = [ modules.peek : LDFLAGS ] ;
 
 ECHO "BOOST_ROOT =" $(BOOST_ROOT) ;
+ECHO "SQLITE_PATH =" $(SQLITE_PATH) ;
 ECHO "CXXFLAGS =" $(CXXFLAGS) ;
 ECHO "LDFLAGS =" $(LDFLAGS) ;
 ECHO "OS =" [ os.name ] ;
@@ -231,6 +233,15 @@ rule linking ( properties * )
 			;
 	}
 
+	if <reputation>on in $(properties) && <extensions>on in $(properties)
+	{
+		result += <include>$(SQLITE_PATH) ;
+		if <sqlite>system in $(properties)
+		{
+			result += <library>libsqlite ;
+		}
+	}
+
 	return $(result) ;
 }
 
@@ -365,9 +376,19 @@ rule building ( properties * )
 
 	if <dht>on in $(properties)
 		|| <dht>logging in $(properties)
-		|| <extensions>on in $(properties)
+		|| ( <reputation>on in $(properties) && <extensions>on in $(properties) )
 	{
-		result += <source>ed25519/src/$(ED25519_SOURCES).c ;
+		result += <source>ed25519/src/$(ED25519_SOURCES).cpp ;
+	}
+
+	if <reputation>on in $(properties) && <extensions>on in $(properties)
+	{
+		result += <source>chacha20poly1305/$(CHACHA20POLY1305_SOURCES).cpp ;
+		result += <source>src/reputation_manager.cpp ;
+		if <sqlite>source in $(properties)
+		{
+			result += <source>$(SQLITE_PATH)/sqlite3.c ;
+		}
 	}
 
 	return $(result) ;
@@ -506,6 +527,11 @@ feature.compose <fpic>off : <toolset>darwin:<cflags>-mdynamic-no-pic ;
 feature profile-calls : off on : composite propagated link-incompatible ;
 feature.compose <profile-calls>on : <define>TORRENT_PROFILE_CALLS=1 ;
 
+feature reputation : off on : composite propagated ;
+feature.compose <reputation>off : <define>TORRENT_DISABLE_REPUTATION_TRACKING ;
+
+feature sqlite : system source : composite propagated ;
+
 # controls whether or not to export some internal
 # libtorrent functions. Used for unit testing
 feature export-extra : off on : composite propagated ;
@@ -586,6 +612,8 @@ lib tcmalloc : : <name>tcmalloc <link>shared ;
 lib wsock32 : : <name>wsock32 <link>shared ;
 lib ws2_32 : : <name>ws2_32 <link>shared ;
 lib iphlpapi : : <name>iphlpapi <link>shared ;
+
+lib libsqlite : : <name>sqlite3 <link>shared ;
 
 SOURCES =
 	alert

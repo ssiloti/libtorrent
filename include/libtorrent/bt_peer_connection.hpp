@@ -92,6 +92,11 @@ namespace libtorrent
 			dont_have_msg = 7,
 			share_mode_msg = 8
 			// identify_msg = 9,
+			// known_peers_msg = 10,
+			// my_standing_msg = 11,
+			// your_standing_msg = 12,
+			// attribution_msg = 13,
+			// receipt_msg = 14,
 		};
 
 		~bt_peer_connection();

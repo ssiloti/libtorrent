@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/extensions/ut_pex.hpp"
 #include "libtorrent/extensions/smart_ban.hpp"
 #include "libtorrent/extensions/lt_identify.hpp"
+#include "libtorrent/extensions/reputation_manager.hpp"
 
 #include "libtorrent/entry.hpp"
 #include "libtorrent/bencode.hpp"
@@ -1249,8 +1250,8 @@ int main(int argc, char* argv[])
 #if !defined(TORRENT_DISABLE_ENCRYPTION) && !defined(TORRENT_DISABLE_EXTENSIONS)
 			"  -e                    force encrypted bittorrent connections\n"
 #endif
-#if !defined(TORRENT_DISABLE_EXTENSIONS)
-			"  -g                    enable secure identification\n"
+#if !defined(TORRENT_DISABLE_EXTENSIONS) && !defined(TORRENT_DISABLE_REPUTATION_TRACKING)
+			"  -g                    enable secure identification and reputation\n"
 #endif
 			"\n QUEING OPTIONS\n"
 			"  -v <limit>            Set the max number of active downloads\n"
@@ -1424,7 +1425,7 @@ int main(int argc, char* argv[])
 					break;
 				}
 #endif
-#if !defined(TORRENT_DISABLE_EXTENSIONS)
+#if !defined(TORRENT_DISABLE_EXTENSIONS) && !defined(TORRENT_DISABLE_REPUTATION_TRACKING)
 			case 'g': secure_ident = true; --i; break;
 #endif
 			case 'W':
@@ -1585,12 +1586,13 @@ int main(int argc, char* argv[])
 
 	ses.set_ip_filter(loaded_ip_filter);
 
-#if !defined(TORRENT_DISABLE_EXTENSIONS)
+#if !defined(TORRENT_DISABLE_EXTENSIONS) && !defined(TORRENT_DISABLE_REPUTATION_TRACKING)
 	if (secure_ident)
 	{
 		boost::shared_ptr<lt_identify_plugin> identify_plugin = boost::make_shared<lt_identify_plugin>();
-		identify_plugin->create_keypair();
 		ses.add_extension(boost::shared_ptr<plugin>(identify_plugin));
+		reputation_handle reputation = create_reputation_plugin(*identify_plugin, ".", "");
+		ses.add_extension(reputation.reputation_plugin);
 	}
 #endif
 

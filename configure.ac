@@ -285,6 +285,15 @@ AC_ARG_ENABLE(
   [[ARG_ENABLE_PYTHON_BINDING=no]]
 )
 
+AC_ARG_ENABLE(
+  [reputation],
+  [AS_HELP_STRING(
+    [--enable-reputation],
+    [enable reputation tracking support [default=no]])],
+  [[ARG_ENABLE_REPUTATION=$enableval]],
+  [[ARG_ENABLE_REPUTATION=no]]
+)
+
 AC_ARG_WITH(
   [libiconv],
   [AS_HELP_STRING(
@@ -447,6 +456,26 @@ AS_IF([test "x$ac_cv_hidden_visibility_attribute" = "xyes"], [
   ])
 ])
 
+AC_MSG_CHECKING([whether reputation tracking support should be enabled])
+AS_CASE(["$ARG_ENABLE_REPUTATION"],
+    ["yes"], [
+      AC_MSG_RESULT([yes])
+      AC_MSG_NOTICE([reputation support: now checking for the Sqlite3 library...])
+
+      PKG_CHECK_MODULES(SQLITE3, [sqlite3], [],
+        [AC_MSG_ERROR([Sqlite3 not found. Sqlite3 is required if reputation tracking is enabled])])
+        AC_SUBST(SQLITE3_CFLAGS)
+        AC_SUBST(SQLITE3_LIBS)
+     ],
+    ["no"], [
+      AC_MSG_RESULT([no])
+      AC_DEFINE([TORRENT_DISABLE_REPUTATION_TRACKING],[1],[Define to disable reputation tracking.])
+      COMPILETIME_OPTIONS="$COMPILETIME_OPTIONS -DTORRENT_DISABLE_REPUTATION_TRACKING "
+     ],
+    [AC_MSG_RESULT([$ARG_ENABLE_REPUTATION])
+     AC_MSG_ERROR([Unknown option "$ARG_ENABLE_REPUTATION". Use either "yes" or "no".])]
+)
+
 AS_ECHO
 AS_ECHO "Checking for extra build files:"
 
@@ -520,6 +549,7 @@ AM_CONDITIONAL([ENABLE_DHT], [test "x$ARG_ENABLE_DHT" = "xyes" -o "x$ARG_ENABLE_
 AM_CONDITIONAL([ENABLE_EXAMPLES], [test "x$ARG_ENABLE_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$ARG_ENABLE_TESTS" = "xyes"])
 AM_CONDITIONAL([ENABLE_PYTHON_BINDING], [test "x$ARG_ENABLE_PYTHON_BINDING" = "xyes"])
+AM_CONDITIONAL([ENABLE_REPUTATION], [test "x$ARG_ENABLE_REPUTATION" = "xyes"])
 
 AM_CONDITIONAL([WITH_OPENSSL], [test "x$ARG_ENABLE_ENCRYPTION" = "xyes" -o "x$ARG_ENABLE_ENCRYPTION" = "xon" ])
 
@@ -696,6 +726,15 @@ OpenSSL library:
   OpenSSL LDFlags:      ${OPENSSL_LDFLAGS}
   OpenSSL Includes:     ${OPENSSL_INCLUDES}
 END 
+])
+
+AS_IF([test "x$ARG_ENABLE_REPUTATION" = "xyes"], [
+cat >> config.report << END
+
+Sqlite3 library:
+  Sqlite3 Libs:         ${SQLITE3_LIBS}
+  Sqlite3 CFlags:       ${SQLITE3_CFLAGS}
+END
 ])
 
 cat config.report

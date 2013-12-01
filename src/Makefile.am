@@ -33,10 +33,12 @@ if WITH_OPENSSL
 ASIO_OPENSSL_SOURCES = asio_ssl.cpp
 endif
 
-CHACHA20POLY1305_SOURCES =                \
- ../chacha20poly1305/chacha.cpp           \
- ../chacha20poly1305/chacha20poly1305.cpp \
- ../chacha20poly1305/poly1305.cpp
+if ENABLE_REPUTATION
+CHACHA20POLY1305_SOURCES =                 \
+  ../chacha20poly1305/chacha.cpp           \
+  ../chacha20poly1305/chacha20poly1305.cpp \
+  ../chacha20poly1305/poly1305.cpp
+endif
 
 libtorrent_rasterbar_la_SOURCES = \
   web_connection_base.cpp         \
@@ -109,6 +111,7 @@ libtorrent_rasterbar_la_SOURCES = \
   puff.cpp                        \
   random.cpp                      \
   receive_buffer.cpp              \
+  reputation_manager.cpp          \
   request_blocks.cpp              \
   resolve_links.cpp               \
   resolver.cpp                    \
@@ -157,9 +160,9 @@ libtorrent_rasterbar_la_SOURCES = \
   $(CHACHA20POLY1305_SOURCES)
 
 libtorrent_rasterbar_la_LDFLAGS = -version-info $(INTERFACE_VERSION_INFO)
-libtorrent_rasterbar_la_LIBADD = @BOOST_SYSTEM_LIB@ @OPENSSL_LIBS@
+libtorrent_rasterbar_la_LIBADD = @BOOST_SYSTEM_LIB@ @OPENSSL_LIBS@ @SQLITE3_LIBS@
 
-AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src -I$(top_srcdir)/chacha20poly1305 @DEBUGFLAGS@ @OPENSSL_INCLUDES@
+AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src -I$(top_srcdir)/chacha20poly1305 @DEBUGFLAGS@ @OPENSSL_INCLUDES@ @SQLITE3_CFLAGS@
 AM_CFLAGS = -I$(top_srcdir)/ed25519/src -std=c99
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@

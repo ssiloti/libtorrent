@@ -145,7 +145,14 @@ set(ed25519_sources
 	verify
 )
 
-set(includes include ed25519/src)
+# -- chacha20poly1305 --
+set(chacha20poly1305_sources
+	chacha
+	chacha20poly1305
+	poly1305
+)
+
+set(includes include ed25519/src chacha20poly1305)
 
 option(shared "build libtorrent as a shared library" ON)
 option(static_runtime "build libtorrent with static runtime" OFF)
@@ -159,6 +166,7 @@ option(deprecated-functions "enable deprecated functions for backwards compatibi
 option(exceptions "build with exception support" ON)
 option(logging "build with logging" OFF)
 option(build_tests "build tests" OFF)
+option(reputation "persistent reputation" OFF)
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo)
 
@@ -212,6 +220,26 @@ if (dht)
 	endforeach(s)
 else()
 	add_definitions(-DTORRENT_DISABLE_DHT)
+endif()
+
+if (reputation OR dht)
+	foreach(s ${ed25519_sources})
+		list(APPEND sources2 ed25519/src/${s})
+	endforeach(s)
+endif()
+
+# === reputation ===
+if(reputation)
+	foreach(s ${chacha20poly1305_sources})
+		list(APPEND sources2 chacha20poly1305/${s})
+	endforeach(s)
+	list(APPEND sources2 src/reputation_manager.cpp)
+	if(NOT DEFINED SQLITE3_INCLUDE_DIR OR NOT DEFINED SQLITE3_LIBRARIES)
+		FIND_PACKAGE(Sqlite3 REQUIRED)
+	endif()
+	include_directories(${SQLITE3_INCLUDE_DIR})
+else()
+	add_definitions(-DTORRENT_DISABLE_REPUTATION_TRACKING)
 endif()
 
 if(NOT MSVC)
@@ -380,4 +408,8 @@ if(build_tests)
 
 #	add_executable(test_natpmp test/test_natpmp.cpp)
 #	target_link_libraries(test_natpmp torrent-rasterbar)
+endif()
+
+if(reputation)
+	target_link_libraries(torrent-rasterbar ${SQLITE3_LIBRARIES})
 endif()
