@@ -181,6 +181,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace libtorrent
 {
 	namespace aux { struct session_impl; }
+	namespace dht { struct msg; }
 
 	struct peer_plugin;
 	class bt_peer_connection;

@@ -167,6 +167,8 @@ namespace libtorrent
 		{
 			// the size of each allocation that is chained in the send buffer
 			enum { send_buffer_size_impl = 128 };
+			// maximum length of query names which can be registered by extensions
+			enum { max_dht_query_length = 15 };
 
 #ifdef TORRENT_DEBUG
 //			friend class ::libtorrent::peer_connection;
@@ -180,6 +182,7 @@ namespace libtorrent
 #else
 			typedef std::map<sha1_hash, boost::shared_ptr<torrent> > torrent_map;
 #endif
+			typedef boost::function<bool(dht::msg const& request, entry& response)> dht_extension_handler_t;
 
 			session_impl(io_service& ios);
 			virtual ~session_impl();
@@ -195,6 +198,7 @@ namespace libtorrent
 			void add_extension(boost::function<boost::shared_ptr<torrent_plugin>(
 				torrent*, void*)> ext);
 			void add_ses_extension(boost::shared_ptr<plugin> ext);
+			void add_extension_dht_query(std::string const& query, dht_extension_handler_t handler);
 #endif
 #if TORRENT_USE_ASSERTS
 			bool has_peer(peer_connection const* p) const;
@@ -313,6 +317,9 @@ namespace libtorrent
 				, boost::function<void(entry&, boost::array<char,64>&
 					, boost::uint64_t&, std::string const&)> cb
 				, std::string salt = std::string());
+
+			void dht_direct_request(boost::asio::ip::udp::endpoint ep, entry& e
+				, boost::function<void(dht::msg const&)> f);
 
 #ifndef TORRENT_NO_DEPRECATE
 			entry dht_state() const;
@@ -569,6 +576,9 @@ namespace libtorrent
 				TORRENT_OVERRIDE TORRENT_FORMAT(3,4);
 			virtual void log_packet(message_direction_t dir, char const* pkt, int len
 				, udp::endpoint node) TORRENT_OVERRIDE;
+
+			virtual bool on_dht_request(char const* query, int query_len
+				, dht::msg const& request, entry& response);
 
 			void set_external_address(address const& ip
 				, int source_type, address const& source);
@@ -1137,6 +1147,17 @@ namespace libtorrent
 			// this is a list to allow extensions to potentially remove themselves.
 			typedef std::list<boost::shared_ptr<plugin> > ses_extension_list_t;
 			ses_extension_list_t m_ses_extensions;
+
+			// std::string could be used for the query names if only all common implementations used SSO
+			// *glares at gcc*
+			struct extention_dht_query
+			{
+				uint8_t query_len;
+				boost::array<char, max_dht_query_length> query;
+				dht_extension_handler_t handler;
+			};
+			typedef std::vector<extention_dht_query> m_extension_dht_queries_t;
+			m_extension_dht_queries_t m_extension_dht_queries;
 #endif
 
 			// if this function is set, it indicates that torrents are allowed

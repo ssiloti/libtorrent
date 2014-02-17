@@ -899,6 +899,17 @@ namespace aux {
 		m_alerts.add_extension(ext);
 		ext->added(this);
 	}
+
+	void session_impl::add_extension_dht_query(std::string const& query, dht_extension_handler_t handler)
+	{
+		TORRENT_ASSERT(query.size() <= max_dht_query_length);
+		extention_dht_query registration;
+		registration.query_len = query.size();
+		std::copy(query.begin(), query.end(), registration.query.begin());
+		registration.handler = handler;
+		m_extension_dht_queries.push_back(registration);
+	}
+
 #endif // TORRENT_DISABLE_EXTENSIONS
 
 #ifndef TORRENT_NO_DEPRECATE
@@ -5528,6 +5539,13 @@ retry:
 			, boost::ref(m_alerts), _1, cb), salt);
 	}
 
+	void session_impl::dht_direct_request(boost::asio::ip::udp::endpoint ep
+		, entry& e, boost::function<void(dht::msg const&)> f)
+	{
+		if (!m_dht) return;
+		m_dht->direct_request(ep, e, f);
+	}
+
 #endif
 
 	void session_impl::maybe_update_udp_mapping(int nat, int local_port, int external_port)
@@ -6459,6 +6477,24 @@ retry:
 			? dht_pkt_alert::incoming : dht_pkt_alert::outgoing;
 
 		m_alerts.emplace_alert<dht_pkt_alert>(pkt, len, d, node);
+	}
+
+	bool session_impl::on_dht_request(char const* query, int query_len
+		, dht::msg const& request, entry& response)
+	{
+#ifndef TORRENT_DISABLE_EXTENSIONS
+		if (query_len > max_dht_query_length) return false;
+
+		for (m_extension_dht_queries_t::iterator i = m_extension_dht_queries.begin();
+			i != m_extension_dht_queries.end(); ++i)
+		{
+			if (query_len == i->query_len
+				&& memcmp(i->query.data(), query, query_len) == 0
+				&& i->handler(request, response))
+				return true;
+		}
+#endif
+		return false;
 	}
 
 	void session_impl::set_external_address(address const& ip
