@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/bind.hpp>
 #include <boost/unordered_set.hpp>
+#include <boost/make_shared.hpp>
 
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -54,6 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/extensions/ut_metadata.hpp"
 #include "libtorrent/extensions/ut_pex.hpp"
 #include "libtorrent/extensions/smart_ban.hpp"
+#include "libtorrent/extensions/lt_identify.hpp"
 
 #include "libtorrent/entry.hpp"
 #include "libtorrent/bencode.hpp"
@@ -1247,6 +1249,9 @@ int main(int argc, char* argv[])
 #if !defined(TORRENT_DISABLE_ENCRYPTION) && !defined(TORRENT_DISABLE_EXTENSIONS)
 			"  -e                    force encrypted bittorrent connections\n"
 #endif
+#if !defined(TORRENT_DISABLE_EXTENSIONS)
+			"  -g                    enable secure identification\n"
+#endif
 			"\n QUEING OPTIONS\n"
 			"  -v <limit>            Set the max number of active downloads\n"
 			"  -^ <limit>            Set the max number of active seeds\n"
@@ -1307,6 +1312,7 @@ int main(int argc, char* argv[])
 	int refresh_delay = 500;
 	bool start_dht = true;
 	bool rate_limit_locals = false;
+	bool secure_ident = false;
 
 	std::deque<std::string> events;
 
@@ -1417,6 +1423,9 @@ int main(int argc, char* argv[])
 					--i;
 					break;
 				}
+#endif
+#if !defined(TORRENT_DISABLE_EXTENSIONS)
+			case 'g': secure_ident = true; --i; break;
 #endif
 			case 'W':
 				settings.set_int(settings_pack::max_peerlist_size, atoi(arg));
@@ -1575,6 +1584,15 @@ int main(int argc, char* argv[])
 	}
 
 	ses.set_ip_filter(loaded_ip_filter);
+
+#if !defined(TORRENT_DISABLE_EXTENSIONS)
+	if (secure_ident)
+	{
+		boost::shared_ptr<lt_identify_plugin> identify_plugin = boost::make_shared<lt_identify_plugin>();
+		identify_plugin->create_keypair();
+		ses.add_extension(boost::shared_ptr<plugin>(identify_plugin));
+	}
+#endif
 
 #ifndef TORRENT_DISABLE_DHT
 	dht_settings dht;

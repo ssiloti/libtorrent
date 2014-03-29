@@ -11,6 +11,7 @@ if $(BOOST_ROOT)
 
 project client_test
    : requirements
+	<include>../ed25519/src
 	<threading>multi <library>/torrent//torrent
 	: default-build
 	<link>static

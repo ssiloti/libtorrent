@@ -37,7 +37,7 @@ upnp_test_SOURCES = upnp_test.cpp
 
 LDADD = $(top_builddir)/src/libtorrent-rasterbar.la
 
-AM_CPPFLAGS = -ftemplate-depth-50 -I$(top_srcdir)/include @DEBUGFLAGS@
+AM_CPPFLAGS = -ftemplate-depth-50 -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src -I$(top_srcdir)/chacha20poly1305 @DEBUGFLAGS@
 
 AM_LDFLAGS = @BOOST_SYSTEM_LIB@
 #AM_LDFLAGS = $(LDFLAGS) @BOOST_SYSTEM_LIB@ @BOOST_FILESYSTEM_LIB@ @BOOST_THREAD_LIB@ @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@

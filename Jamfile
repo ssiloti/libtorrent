@@ -363,6 +363,13 @@ rule building ( properties * )
 		}
 	}
 
+	if <dht>on in $(properties)
+		|| <dht>logging in $(properties)
+		|| <extensions>on in $(properties)
+	{
+		result += <source>ed25519/src/$(ED25519_SOURCES).c ;
+	}
+
 	return $(result) ;
 }
 
@@ -641,6 +648,8 @@ SOURCES =
 	session_impl
 	session_call
 	settings_pack
+	sha1
+	sha256
 	socket_io
 	socket_type
 	socks5_stream
@@ -655,7 +664,6 @@ SOURCES =
 	tracker_manager
 	http_tracker_connection
 	udp_tracker_connection
-	sha1
 	tailqueue
 	timestamp_history
 	udp_socket
@@ -690,6 +698,7 @@ SOURCES =
 	ut_metadata
 	lt_trackers
 	smart_ban
+	lt_identify
 	;
 
 KADEMLIA_SOURCES =
@@ -719,6 +728,12 @@ ED25519_SOURCES =
 	sha512
 	sign
 	verify
+	;
+
+CHACHA20POLY1305_SOURCES =
+	chacha
+	chacha20poly1305
+	poly1305
 	;
 
 local usage-requirements =
@@ -763,6 +778,7 @@ lib torrent
 
 	: # requirements
 	<include>./ed25519/src
+	<include>./chacha20poly1305
 	<threading>multi
 	<define>TORRENT_BUILDING_LIBRARY
 	<link>shared:<define>TORRENT_BUILDING_SHARED
@@ -776,6 +792,8 @@ lib torrent
 
 	<dht>on:<source>src/kademlia/$(KADEMLIA_SOURCES).cpp
 	<dht>on:<source>ed25519/src/$(ED25519_SOURCES).cpp
+
+	<extensions>on:<source>chacha20poly1305/$(CHACHA20POLY1305_SOURCES).cpp
 
 	<conditional>@building
 	<conditional>@warnings

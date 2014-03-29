@@ -91,6 +91,7 @@ namespace libtorrent
 			// comment_msg = 6,
 			dont_have_msg = 7,
 			share_mode_msg = 8
+			// identify_msg = 9,
 		};
 
 		~bt_peer_connection();

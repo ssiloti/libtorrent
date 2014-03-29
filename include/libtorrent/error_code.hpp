@@ -329,6 +329,8 @@ namespace libtorrent
 			// peer was banned because its listen port is within a banned port
 			// range, as specified by the port_filter.
 			banned_by_port_filter,
+			// The peer sent an invalid identify message
+			invalid_identify_message,
 
 
 			// The NAT-PMP router responded with an unsupported protocol version

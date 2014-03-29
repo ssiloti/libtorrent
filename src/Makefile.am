@@ -33,6 +33,11 @@ if WITH_OPENSSL
 ASIO_OPENSSL_SOURCES = asio_ssl.cpp
 endif
 
+CHACHA20POLY1305_SOURCES =                \
+ ../chacha20poly1305/chacha.cpp           \
+ ../chacha20poly1305/chacha20poly1305.cpp \
+ ../chacha20poly1305/poly1305.cpp
+
 libtorrent_rasterbar_la_SOURCES = \
   web_connection_base.cpp         \
   alert.cpp                       \
@@ -82,6 +87,7 @@ libtorrent_rasterbar_la_SOURCES = \
   ip_voter.cpp                    \
   lazy_bdecode.cpp                \
   lsd.cpp                         \
+  lt_identify.cpp                 \
   lt_trackers.cpp                 \
   magnet_uri.cpp                  \
   merkle.cpp                      \
@@ -113,6 +119,7 @@ libtorrent_rasterbar_la_SOURCES = \
   session_settings.cpp            \
   settings_pack.cpp               \
   sha1.cpp                        \
+  sha256.cpp                      \
   smart_ban.cpp                   \
   socket_io.cpp                   \
   socket_type.cpp                 \
@@ -144,12 +151,15 @@ libtorrent_rasterbar_la_SOURCES = \
   xml_parse.cpp                   \
   \
   $(KADEMLIA_SOURCES)             \
-  $(ASIO_OPENSSL_SOURCES)
+  $(ASIO_OPENSSL_SOURCES)         \
+  $(ED25519_SOURCES)              \
+  $(GEOIP_SOURCES)                \
+  $(CHACHA20POLY1305_SOURCES)
 
 libtorrent_rasterbar_la_LDFLAGS = -version-info $(INTERFACE_VERSION_INFO)
 libtorrent_rasterbar_la_LIBADD = @BOOST_SYSTEM_LIB@ @OPENSSL_LIBS@
 
-AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src @DEBUGFLAGS@ @OPENSSL_INCLUDES@
+AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src -I$(top_srcdir)/chacha20poly1305 @DEBUGFLAGS@ @OPENSSL_INCLUDES@
 AM_CFLAGS = -I$(top_srcdir)/ed25519/src -std=c99
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@
