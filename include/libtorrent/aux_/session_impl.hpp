@@ -456,6 +456,7 @@ namespace libtorrent
 			{ return m_connections.size(); }
 
 			int peak_up_rate() const { return m_peak_up_rate; }
+			int peak_down_rate() const { return m_peak_down_rate; }
 
 			void trigger_unchoke()
 			{
