@@ -2476,18 +2476,16 @@ namespace
 			return sequence;
 		}
 
-		double download_direct_multiplier()
+		boost::int64_t adjust_download_direct(boost::int64_t credit)
 		{
-			if (m_global_balance <= 0)
-				return 1.0;
-
-			boost::int64_t global_bytes_remaining = bytes_pending_download();
-			if (global_bytes_remaining <= 0)
-				return 1.0;
+			if (m_global_balance <= 0 || credit <= 0)
+				return credit;
+			boost::int64_t global_bytes_remaining = bytes_pending_download() + credit;
+			TORRENT_ASSERT(global_bytes_remaining > 0);
 			double multiplier = double(m_global_balance) / double(global_bytes_remaining);
-			if (multiplier < 1.0)
-				multiplier = 1.0;
-			return multiplier;
+			if (multiplier <= 1.0)
+				return credit;
+			return boost::int64_t(credit * multiplier);
 		}
 
 		void schedule_next_standing(boost::weak_ptr<reputation_session> peer)
@@ -3807,8 +3805,7 @@ namespace
 			signed_state peer_state;
 			peer_state.subject = m_rid;
 			peer_state.upload_direct = m_payload_sent_since_db_update;
-			peer_state.download_direct
-				= boost::int64_t(m_payload_received_since_receipt * m_repman.download_direct_multiplier());
+			peer_state.download_direct = m_repman.adjust_download_direct(m_payload_received_since_receipt);
 			m_repman.update_state_for(m_rkey, peer_state);
 			// if the peer now has a positive direct ballance that overrides the indirect reputation
 			if (peer_state.upload_direct > peer_state.download_direct)

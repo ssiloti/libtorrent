@@ -712,7 +712,7 @@ namespace
 
 		{
 			reputation_state new_state;
-			new_state.upload_direct = 6;
+			new_state.upload_direct = 402;
 			new_state.download_direct = 2;
 			new_state.upload_recommended = 6;
 			new_state.download_recommended = 8;
@@ -721,10 +721,10 @@ namespace
 			tc.repman().update_state_for(i.rkey, new_state);
 		}
 
-		tc.ses->m_torrents.push_back(torrent_handle(10, 8, torrent_status::downloading));
-		double mult = tc.repman().download_direct_multiplier();
-		double expected_mult = (6 - 2) / (10 - 8);
-		TEST_EQUAL(mult, expected_mult);
+		tc.ses->m_torrents.push_back(torrent_handle(108, 8, torrent_status::downloading));
+		boost::int64_t adjusted = tc.repman().adjust_download_direct(100);
+		boost::int64_t expected_adj = (double(402 - 2) / double(108 - 8 + 100)) * 100;
+		TEST_EQUAL(adjusted, expected_adj);
 
 		return 0;
 	}
