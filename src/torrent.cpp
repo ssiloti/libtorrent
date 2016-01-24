@@ -1518,6 +1518,8 @@ namespace libtorrent
 	void torrent::add_extension(boost::shared_ptr<torrent_plugin> ext)
 	{
 		m_extensions.push_back(ext);
+		tick_plugin* tick_ext = dynamic_cast<tick_plugin*>(ext.get());
+		if (tick_ext) m_tick_extensions.push_back(tick_ext);
 	}
 
 	void torrent::remove_extension(boost::shared_ptr<torrent_plugin> ext)
@@ -10142,8 +10144,8 @@ namespace libtorrent
 		boost::weak_ptr<torrent> self(shared_from_this());
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
-		for (extension_list_t::iterator i = m_extensions.begin()
-			, end(m_extensions.end()); i != end; ++i)
+		for (std::vector<tick_plugin*>::iterator i = m_tick_extensions.begin()
+			, end(m_tick_extensions.end()); i != end; ++i)
 		{
 			TORRENT_TRY {
 				(*i)->tick();

@@ -91,6 +91,7 @@ namespace libtorrent
 
 	class piece_manager;
 	struct torrent_plugin;
+	struct tick_plugin;
 	struct bitfield;
 	struct announce_entry;
 	struct tracker_request;
@@ -1223,6 +1224,8 @@ namespace libtorrent
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		typedef std::list<boost::shared_ptr<torrent_plugin> > extension_list_t;
 		extension_list_t m_extensions;
+
+		std::vector<tick_plugin*> m_tick_extensions;
 #endif
 
 		// used for tracker announces

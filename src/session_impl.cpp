@@ -930,6 +930,12 @@ namespace aux {
 		m_alerts.add_extension(ext);
 		ext->added(session_handle(this));
 
+		tick_plugin* tick_ext = dynamic_cast<tick_plugin*>(ext.get());
+		if (tick_ext) m_tick_extensions.push_back(tick_ext);
+
+		unchoke_plugin* unchoke_ext = dynamic_cast<unchoke_plugin*>(ext.get());
+		if (unchoke_ext) m_unchoke_extensions.push_back(unchoke_ext);
+
 		// get any DHT queries the plugin would like to handle
 		// and record them in m_extension_dht_queries for lookup
 		// later
@@ -3038,11 +3044,11 @@ retry:
 		}
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
-		for (ses_extension_list_t::const_iterator i = m_ses_extensions.begin()
-			, end(m_ses_extensions.end()); i != end; ++i)
+		for (std::vector<tick_plugin*>::const_iterator i = m_tick_extensions.begin()
+			, end(m_tick_extensions.end()); i != end; ++i)
 		{
 			TORRENT_TRY {
-				(*i)->on_tick();
+				(*i)->tick();
 			} TORRENT_CATCH(std::exception&) {}
 		}
 #endif
@@ -3814,8 +3820,8 @@ retry:
 		std::sort(opt_unchoke.begin(), opt_unchoke.end(), last_optimistic_unchoke_cmp());
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
-		for (ses_extension_list_t::iterator i = m_ses_extensions.begin()
-			, end(m_ses_extensions.end()); i != end; ++i)
+		for (std::vector<unchoke_plugin*>::iterator i = m_unchoke_extensions.begin()
+			, end(m_unchoke_extensions.end()); i != end; ++i)
 		{
 			if ((*i)->on_optimistic_unchoke(opt_unchoke))
 				break;

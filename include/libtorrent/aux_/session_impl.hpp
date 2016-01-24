@@ -103,6 +103,8 @@ namespace libtorrent
 {
 
 	struct plugin;
+	struct tick_plugin;
+	struct unchoke_plugin;
 	class upnp;
 	class natpmp;
 	class lsd;
@@ -1169,6 +1171,9 @@ namespace libtorrent
 			// this is a list to allow extensions to potentially remove themselves.
 			typedef std::list<boost::shared_ptr<plugin> > ses_extension_list_t;
 			ses_extension_list_t m_ses_extensions;
+
+			std::vector<tick_plugin*> m_tick_extensions;
+			std::vector<unchoke_plugin*> m_unchoke_extensions;
 
 			// std::string could be used for the query names if only all common implementations used SSO
 			// *glares at gcc*

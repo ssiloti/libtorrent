@@ -200,6 +200,27 @@ namespace libtorrent
 	// see max_dht_query_length
 	typedef std::vector<std::pair<std::string, dht_extension_handler_t> > dht_extensions_t;
 
+	// implementors of the plugin and torrent_plugin interfaces can inherit
+	// from this class as well to register a tick hook
+	struct TORRENT_EXPORT tick_plugin
+	{
+		// called once per second
+		virtual void tick() = 0;
+	};
+
+	// implementors of the plugin interface can inherit from this class to
+	// customize unchoke behavior
+	struct TORRENT_EXPORT unchoke_plugin
+	{
+		// called when choosing peers to optimisticly unchoke
+		// peer's will be unchoked in the order they appear in the given
+		// vector which is initiallity sorted by when they were last
+		// optimistically unchoked.
+		// if the plugin returns true then the ordering provided will be
+		// used and no other plugin will be allowed to change it.
+		virtual bool on_optimistic_unchoke(std::vector<peer_connection_handle>& /* peers */) = 0;
+	};
+
 	// this is the base class for a session plugin. One primary feature
 	// is that it is notified of all torrents that are added to the session,
 	// and can add its own torrent_plugins.
@@ -232,18 +253,6 @@ namespace libtorrent
 		// return true if the add_torrent_params should be added
 		virtual bool on_unknown_torrent(sha1_hash const& /* info_hash */
 			, peer_connection_handle const& /* pc */, add_torrent_params& /* p */)
-		{ return false; }
-
-		// called once per second
-		virtual void on_tick() {}
-
-		// called when choosing peers to optimisticly unchoke
-		// peer's will be unchoked in the order they appear in the given
-		// vector which is initiallity sorted by when they were last
-		// optimistically unchoked.
-		// if the plugin returns true then the ordering provided will be
-		// used and no other plugin will be allowed to change it.
-		virtual bool on_optimistic_unchoke(std::vector<peer_connection_handle>& /* peers */)
 		{ return false; }
 
 		// called when saving settings state
@@ -285,10 +294,6 @@ namespace libtorrent
 		// piece through the ``torrent`` and the ``piece_picker``.
 		virtual void on_piece_pass(int /*index*/) {}
 		virtual void on_piece_failed(int /*index*/) {}
-
-		// This hook is called approximately once per second. It is a way of making it
-		// easy for plugins to do timed events, for sending messages or whatever.
-		virtual void tick() {}
 
 		// These hooks are called when the torrent is paused and unpaused respectively.
 		// The return value indicates if the event was handled. A return value of
