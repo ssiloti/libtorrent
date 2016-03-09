@@ -39,6 +39,7 @@ namespace libtorrent
 {
 	disk_io_job::disk_io_job()
 		: requester(0)
+		, queued(0)
 		, piece(0)
 		, action(read)
 		, ret(0)

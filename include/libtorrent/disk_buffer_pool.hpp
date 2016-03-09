@@ -110,6 +110,8 @@ namespace libtorrent
 			boost::function<void(char*)> callback;
 		};
 
+		void unblock_recv_allocs(mutex::scoped_lock& l);
+
 	protected:
 
 		void free_buffer_impl(char* buf, mutex::scoped_lock& l);

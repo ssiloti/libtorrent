@@ -216,6 +216,9 @@ namespace libtorrent
 			} io;
 		} d;
 
+		// timestamp the job was queued at in microseconds
+		boost::uint32_t queued;
+
 		// arguments used for read and write
 		// the piece this job applies to
 		boost::uint32_t piece:24;

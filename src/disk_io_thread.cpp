@@ -61,7 +61,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/resource.h>
 #endif
 
-#define DEBUG_DISK_THREAD 0
+#define DEBUG_DISK_THREAD 1
+#include <cstdarg>
 
 #if __cplusplus >= 201103L || defined __clang__
 
@@ -155,6 +156,9 @@ namespace libtorrent
 		: m_num_threads(0)
 		, m_abort(false)
 		, m_num_running_threads(0)
+		, m_min_write_time(std::numeric_limits<uint32_t>::max())
+		, m_prev_min_write_time(0)
+		, m_prev_min_write_time_ts(clock_type::now())
 		, m_userdata(userdata)
 		, m_last_cache_expiry(min_time())
 		, m_last_file_check(clock_type::now())
@@ -1434,13 +1438,26 @@ namespace libtorrent
 
 		if (!j->error.ec)
 		{
-			boost::uint32_t write_time = total_microseconds(clock_type::now() - start_time);
+			time_point finish_time = clock_type::now();
+			boost::uint32_t write_time = total_microseconds(finish_time - start_time);
 			m_write_time.add_sample(write_time);
 
 			m_stats_counters.inc_stats_counter(counters::num_blocks_written);
 			m_stats_counters.inc_stats_counter(counters::num_write_ops);
 			m_stats_counters.inc_stats_counter(counters::disk_write_time, write_time);
 			m_stats_counters.inc_stats_counter(counters::disk_job_time, write_time);
+
+			if (j->queued)
+			{
+				boost::uint32_t job_time = boost::uint32_t(total_microseconds(finish_time.time_since_epoch()));
+				job_time -= j->queued;
+				// TODO: can probably use memory_order_acquire here then release on sucessful exchange
+				boost::uint32_t min_time = m_min_write_time.load();
+				while (job_time < min_time
+					&& !m_min_write_time.compare_exchange_weak(min_time, job_time));
+				if (job_time < min_time)
+					DLOG("new min job time: %d\n", int(job_time));
+			}
 		}
 
 		m_disk_cache.free_buffer(j->buffer.disk_block);
@@ -1643,6 +1660,7 @@ namespace libtorrent
 
 		disk_io_job* j = allocate_job(disk_io_job::write);
 		j->storage = storage->shared_from_this();
+		j->queued = uint32_t(total_microseconds(clock_type::now().time_since_epoch()));
 		j->piece = r.piece;
 		j->d.io.offset = r.start;
 		j->d.io.buffer_size = r.length;
@@ -3278,6 +3296,24 @@ namespace libtorrent
 			execute_job(j);
 
 			l.lock();
+
+			time_point now = clock_type::now();
+			if (now - m_prev_min_write_time_ts > milliseconds(100))
+			{
+				m_prev_min_write_time_ts = now;
+				if (m_queued_jobs.empty() || m_min_write_time == std::numeric_limits<uint32_t>::max())
+					m_prev_min_write_time = 0;
+				else
+					m_prev_min_write_time = m_min_write_time.load();
+				m_min_write_time = std::numeric_limits<uint32_t>::max();
+
+				DLOG("New minimum write job time: %d\n", int(m_prev_min_write_time));
+
+				if (m_prev_min_write_time < 1000)
+				{
+					m_disk_cache.unblock_recv_allocs(l);
+				}
+			}
 		}
 		l.unlock();
 
@@ -3367,6 +3403,7 @@ namespace libtorrent
 		, boost::shared_ptr<disk_observer> o
 		, char const* category)
 	{
+		exceeded = m_prev_min_write_time >= 1000;
 		char* ret = m_disk_cache.allocate_buffer(exceeded, o, category);
 		return ret;
 	}

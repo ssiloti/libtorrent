@@ -530,6 +530,13 @@ namespace libtorrent
 		// shutting down. This last thread is responsible for cleanup
 		boost::atomic<int> m_num_running_threads;
 
+		// minimum write job time we've seen for this sample period
+		boost::atomic<uint32_t> m_min_write_time;
+		// minimum write job time we saw in the previouce sample period
+		boost::atomic<uint32_t> m_prev_min_write_time;
+		// when the previous sample period ended and the current one began
+		time_point m_prev_min_write_time_ts;
+
 		// the actual threads running disk jobs
 		std::vector<boost::shared_ptr<thread> > m_threads;
 
