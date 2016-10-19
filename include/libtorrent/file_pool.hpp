@@ -37,6 +37,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <mutex>
 #include <vector>
 
+#include <cstdint>
+#define TORRENT_64BIT (SIZE_MAX >= UINT64_MAX)
+
 #include "libtorrent/file.hpp"
 #include "libtorrent/aux_/time.hpp"
 
@@ -77,6 +80,88 @@ namespace libtorrent
 		time_point last_use;
 	};
 
+	struct file_pool;
+
+	struct pool_file : boost::noncopyable
+	{
+		friend struct file_pool;
+
+#if !TORRENT_64BIT
+		struct lru_mapping
+		{
+			lru_mapping(file_mapping_handle handle);
+			file_mapping_handle mapping_ptr;
+			time_point last_use;
+		};
+
+		using mappings_t = std::vector<lru_mapping>;
+#endif
+
+		pool_file(file_pool& pool);
+
+		bool set_size(std::int64_t size, error_code& ec)
+		{
+#if TORRENT_64BIT
+			std::lock_guard<std::mutex> l(m_mutex);
+			return set_size_impl(size, ec);
+#else
+			std::lock_guard<std::mutex> l(m_mutex);
+			m_mappings.clear();
+			return m_file->set_size(size, ec);
+#endif
+		}
+
+#if TORRENT_64BIT
+		bool set_size_impl(std::int64_t size, error_code& ec)
+		{
+			m_mapping_ptr.reset();
+			auto result = m_file->set_size(size, ec);
+			map_op();
+			return result;
+		}
+#endif
+
+		bool open(std::string const& p, int m, error_code& ec)
+		{ return m_file->open(p, m, ec); }
+
+		std::int64_t get_size(error_code& ec) const { return m_file->get_size(ec); }
+
+		bool is_open() const { return m_file->is_open(); }
+		int open_mode() const { return m_file->open_mode(); }
+
+		std::int64_t writev(std::int64_t file_offset, span<file::iovec_t const> bufs
+			, error_code& ec, int flags = 0);
+		std::int64_t readv(std::int64_t file_offset, span<file::iovec_t const> bufs
+			, error_code& ec, int flags = 0);
+
+		handle_type native_handle() const { return m_file->native_handle(); }
+		file_handle handle() { return m_file; }
+
+	private:
+		// this needs to be a handle (i.e. shared_ptr) to file rather than a direct
+		// member to avoid creating a reference cycle between the mappings
+		// and the file
+		file_handle m_file;
+
+		// 64-bit: ensures that resizing and remapping the file is atomic
+		// so that an incomplete mapping isn't assigned to m_mapping_ptr
+		// 32-bit: protects m_mappings from concurrent access
+		std::mutex m_mutex;
+
+#if TORRENT_64BIT
+		file_mapping_handle map_op();
+
+		file_mapping_handle m_mapping_ptr;
+#else
+		file_mapping_handle map_op(std::int64_t offset, std::size_t len, error_code& ec);
+
+		file_pool& m_pool;
+		mappings_t m_mappings;
+#endif
+	};
+
+	using pool_file_handle = std::shared_ptr<pool_file>;
+
 	// this is an internal cache of open file handles. It's primarily used by
 	// storage_interface implementations. It provides semi weak guarantees of
 	// not opening more file handles than specified. Given multiple threads,
@@ -84,6 +169,8 @@ namespace libtorrent
 	// may be windows where more file handles are open.
 	struct TORRENT_EXPORT file_pool : boost::noncopyable
 	{
+		friend struct pool_file;
+
 		// ``size`` specifies the number of allowed files handles
 		// to hold open at any given time.
 		explicit file_pool(int size = 40);
@@ -92,7 +179,7 @@ namespace libtorrent
 		// return an open file handle to file at ``file_index`` in the
 		// file_storage ``fs`` opened at save path ``p``. ``m`` is the
 		// file open mode (see file::open_mode_t).
-		file_handle open_file(void* st, std::string const& p
+		pool_file_handle open_file(void* st, std::string const& p
 			, int file_index, file_storage const& fs, int m, error_code& ec);
 		// release all files belonging to the specified storage_interface (``st``)
 		// the overload that takes ``file_index`` releases only the file with
@@ -123,14 +210,20 @@ namespace libtorrent
 	private:
 
 		void remove_oldest(std::unique_lock<std::mutex>& l);
+#if !TORRENT_64BIT
+		void free_map_space(std::size_t needed);
+#endif
 
+		std::size_t m_mapped_size_max;
+		std::size_t m_mapped_size;
 		int m_size;
 		bool m_low_prio_io;
 
 		struct lru_file_entry
 		{
-			lru_file_entry(): key(0), last_use(aux::time_now()), mode(0) {}
-			mutable file_handle file_ptr;
+			lru_file_entry() : key(0), last_use(aux::time_now()), mode(0) {}
+
+			mutable pool_file_handle file_ptr;
 			void* key;
 			time_point last_use;
 			int mode;

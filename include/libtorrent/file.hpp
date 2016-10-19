@@ -204,6 +204,7 @@ namespace libtorrent
 		bool m_done;
 	};
 
+	struct file_mapping;
 	struct file;
 
 #ifdef TORRENT_DEBUG_FILE_LEAKS
@@ -232,7 +233,27 @@ namespace libtorrent
 	using file_handle = std::shared_ptr<file>;
 #endif
 
-	struct TORRENT_EXTRA_EXPORT file: boost::noncopyable
+	using file_mapping_handle = std::shared_ptr<file_mapping const>;
+
+	struct file_mapping : boost::noncopyable
+	{
+		span<char> as_span() const { return span<char>(reinterpret_cast<char*>(base), len); }
+
+		void* data() const { return base; }
+		std::int64_t offset() const { return off; }
+		std::size_t size() const { return len; }
+
+		file_mapping(void* base, std::int64_t offset, size_t len, file_handle file_ptr);
+		~file_mapping();
+
+	private:
+		void* base;
+		std::int64_t off;
+		size_t len;
+		file_handle file_ptr;
+	};
+
+	struct TORRENT_EXTRA_EXPORT file : boost::noncopyable
 	{
 		// the open mode for files. Used for the file constructor or
 		// file::open().
@@ -319,6 +340,9 @@ namespace libtorrent
 			, error_code& ec, int flags = 0);
 		std::int64_t readv(std::int64_t file_offset, span<iovec_t const> bufs
 			, error_code& ec, int flags = 0);
+
+		file_mapping_handle map_region(std::shared_ptr<file> this_ptr, std::int64_t offset
+			, size_t len, error_code& ec);
 
 		std::int64_t get_size(error_code& ec) const;
 

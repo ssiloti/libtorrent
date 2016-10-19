@@ -116,6 +116,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/types.h>
 #include <cerrno>
 #include <dirent.h>
+#include <sys/mman.h>
 
 #ifdef TORRENT_LINUX
 // linux specifics
@@ -1333,6 +1334,15 @@ namespace libtorrent
 	bool file::has_manage_volume_privs = get_manage_volume_privs();
 #endif
 
+	file_mapping::file_mapping(void* base, std::int64_t offset, size_t len, file_handle file_ptr)
+		: base(base), off(offset), len(len), file_ptr(file_ptr)
+	{}
+
+	file_mapping::~file_mapping()
+	{
+		::munmap(base, file_ptr->native_handle());
+	}
+
 	file::file()
 		: m_file_handle(INVALID_HANDLE_VALUE)
 		, m_open_mode(0)
@@ -2209,8 +2219,28 @@ typedef struct _FILE_ALLOCATED_RANGE_BUFFER {
 			}
 #endif // TORRENT_HAS_FALLOCATE
 		}
+
 #endif // TORRENT_WINDOWS
 		return true;
+	}
+
+	file_mapping_handle file::map_region(std::shared_ptr<file> this_ptr, std::int64_t offset
+		, size_t len, error_code& ec)
+	{
+		TORRENT_ASSERT(is_open());
+		if (!is_open()) return file_mapping_handle();
+
+		int prot = PROT_READ;
+		if ((open_mode() & rw_mask) != read_only)
+			prot |= PROT_WRITE;
+
+		void* base = ::mmap(nullptr, len, prot, MAP_SHARED, m_file_handle, offset);
+		if (base == MAP_FAILED)
+		{
+			ec.assign(errno, system_category());
+			return file_mapping_handle();
+		}
+		return std::make_shared<file_mapping>(base, offset, len, this_ptr);
 	}
 
 	std::int64_t file::get_size(error_code& ec) const

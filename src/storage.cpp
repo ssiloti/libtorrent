@@ -255,7 +255,7 @@ namespace libtorrent
 			// we're writing to it
 			m_storage.m_stat_cache.set_dirty(file_index);
 
-			file_handle handle = m_storage.open_file(file_index
+			pool_file_handle handle = m_storage.open_file(file_index
 				, file::read_write, ec);
 			if (ec) return -1;
 
@@ -340,7 +340,7 @@ namespace libtorrent
 				return ret;
 			}
 
-			file_handle handle = m_storage.open_file(file_index
+			pool_file_handle handle = m_storage.open_file(file_index
 				, file::read_only | m_flags, ec);
 			if (ec) return -1;
 
@@ -435,12 +435,12 @@ namespace libtorrent
 			if (old_prio == 0 && new_prio != 0)
 			{
 				// move stuff out of the part file
-				file_handle f = open_file(i, file::read_write, ec);
+				pool_file_handle f = open_file(i, file::read_write, ec);
 				if (ec) return;
 
 				need_partfile();
 
-				m_part_file->export_file(*f, fs.file_offset(i), fs.file_size(i), ec.ec);
+				m_part_file->export_file(*f->handle(), fs.file_offset(i), fs.file_size(i), ec.ec);
 				if (ec)
 				{
 					ec.file = i;
@@ -458,14 +458,14 @@ namespace libtorrent
 				if (exists(fp))
 					new_prio = 1;
 /*
-				file_handle f = open_file(i, file::read_only, ec);
+				pool_file_handle f = open_file(i, file::read_only, ec);
 				if (ec.ec != boost::system::errc::no_such_file_or_directory)
 				{
 					if (ec) return;
 
 					need_partfile();
 
-					m_part_file->import_file(*f, fs.file_offset(i), fs.file_size(i), ec.ec);
+					m_part_file->import_file(*f->handle(), fs.file_offset(i), fs.file_size(i), ec.ec);
 					if (ec)
 					{
 						ec.file = i;
@@ -561,7 +561,7 @@ namespace libtorrent
 					}
 				}
 				ec.ec.clear();
-				file_handle f = open_file(file_index, file::read_write
+				pool_file_handle f = open_file(file_index, file::read_write
 					| file::random_access, ec);
 				if (ec)
 				{
@@ -1201,10 +1201,10 @@ namespace libtorrent
 		return size;
 	}
 
-	file_handle default_storage::open_file(int file, int mode
+	pool_file_handle default_storage::open_file(int file, int mode
 		, storage_error& ec) const
 	{
-		file_handle h = open_file_impl(file, mode, ec.ec);
+		pool_file_handle h = open_file_impl(file, mode, ec.ec);
 		if (((mode & file::rw_mask) != file::read_only)
 			&& ec.ec == boost::system::errc::no_such_file_or_directory)
 		{
@@ -1218,7 +1218,7 @@ namespace libtorrent
 			{
 				ec.file = file;
 				ec.operation = storage_error::mkdir;
-				return file_handle();
+				return pool_file_handle();
 			}
 
 			// if the directory creation failed, don't try to open the file again
@@ -1229,7 +1229,7 @@ namespace libtorrent
 		{
 			ec.file = file;
 			ec.operation = storage_error::open;
-			return file_handle();
+			return pool_file_handle();
 		}
 		TORRENT_ASSERT(h);
 
@@ -1262,7 +1262,7 @@ namespace libtorrent
 		return h;
 	}
 
-	file_handle default_storage::open_file_impl(int file, int mode
+	pool_file_handle default_storage::open_file_impl(int file, int mode
 		, error_code& ec) const
 	{
 		bool lock_files = m_settings ? settings().get_bool(settings_pack::lock_files) : false;
@@ -1284,7 +1284,7 @@ namespace libtorrent
 			mode |= file::no_cache;
 		}
 
-		file_handle ret = m_pool.open_file(const_cast<default_storage*>(this)
+		pool_file_handle ret = m_pool.open_file(const_cast<default_storage*>(this)
 			, m_save_path, file, files(), mode, ec);
 		if (ec && (mode & file::lock_file))
 		{
