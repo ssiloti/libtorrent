@@ -301,6 +301,7 @@ rule building ( properties * )
 		&& ! <target-os>darwin in $(properties)
 	{
 		result += <source>src/sha1.cpp ;
+		result += <source>src/sha256.cpp ;
 	}
 
 	if ( <toolset>darwin in $(properties)
