@@ -142,10 +142,6 @@ OPTIONS:
 -L collection add a collection name to this torrent. Other torrents
               in the same collection is expected to share files
               with this one.
--M            make the torrent compatible with mutable torrents
-              this means aligning large files and pad them in order
-              for piece hashes to uniquely indentify a file without
-              overlap
 )";
 }
 
@@ -164,7 +160,6 @@ int main(int argc_, char const* argv_[]) try
 	std::vector<std::string> trackers;
 	std::vector<std::string> collections;
 	std::vector<lt::sha1_hash> similar;
-	int pad_file_limit = -1;
 	int piece_size = 0;
 	lt::create_flags_t flags = {};
 	std::string root_cert;
@@ -189,10 +184,6 @@ int main(int argc_, char const* argv_[]) try
 
 		switch (flag)
 		{
-			case 'M':
-				flags |= lt::create_torrent::mutable_torrent_support;
-				pad_file_limit = 0x4000;
-				continue;
 			case 'l':
 				flags |= lt::create_torrent::symlinks;
 				continue;
@@ -214,7 +205,6 @@ int main(int argc_, char const* argv_[]) try
 			case 'r': root_cert = args[1]; break;
 			case 'L': collections.push_back(args[1]); break;
 			case 'p':
-				pad_file_limit = atoi(args[1]);
 				flags |= lt::create_torrent::optimize_alignment;
 				break;
 			case 'S': {
@@ -277,7 +267,7 @@ int main(int argc_, char const* argv_[]) try
 		return 1;
 	}
 
-	lt::create_torrent t(fs, piece_size, pad_file_limit, flags);
+	lt::create_torrent t(fs, piece_size, flags);
 	int tier = 0;
 	for (std::string const& tr : trackers) {
 		t.add_tracker(tr, tier);
