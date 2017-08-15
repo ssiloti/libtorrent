@@ -608,7 +608,7 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
 			ret.push_back(wan);
 		}
 #elif TORRENT_USE_NETLINK
-		int sock = socket(PF_ROUTE, SOCK_DGRAM, NETLINK_ROUTE);
+		int sock = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
 		if (sock < 0)
 		{
 			ec = error_code(errno, system_category());
@@ -619,9 +619,30 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
 		std::map<int, ip_interface> link_info;
 
 		{
-			char msg[NL_BUFSIZE] = {};
+			struct {
+				nlmsghdr hdr;
+				rtgenmsg msg;
+			} request;
+			memset(&request, 0, sizeof(request));
+			request.hdr.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
+			request.hdr.nlmsg_type = RTM_GETLINK;
+			request.hdr.nlmsg_len = sizeof(request);
+			request.msg.rtgen_family = AF_UNSPEC; // All families.
+			int len = send(sock, &request, sizeof(request), 0);
+			TORRENT_ASSERT(len == sizeof(request));
+
+			// get the socket's port ID so that we can verify it in the repsonse
+			sockaddr_nl sock_addr;
+			socklen_t sock_addr_len = sizeof(sock_addr);
+			if (getsockname(sock, reinterpret_cast<sockaddr*>(&sock_addr), &sock_addr_len) < 0)
+			{
+				return ret;
+			}
+
+			alignas(4) char msg[NL_BUFSIZE] = {};
 			nlmsghdr* nl_msg = reinterpret_cast<nlmsghdr*>(msg);
-			int len = nl_dump_request(sock, RTM_GETLINK, seq++, AF_UNSPEC, msg, sizeof(ifinfomsg));
+			len = read_nl_sock(sock, msg, seq, sock_addr.nl_pid);
+
 			if (len < 0)
 			{
 				ec = error_code(errno, system_category());
