@@ -71,6 +71,8 @@ namespace libtorrent {
 			, disk_job_flags_t flags = {}) override;
 		void async_hash(storage_index_t storage, piece_index_t piece, disk_job_flags_t flags
 			, std::function<void(piece_index_t, sha1_hash const&, storage_error const&)> handler) override;
+		void async_hash2(storage_index_t storage, piece_index_t piece, int offset, disk_job_flags_t flags
+			, std::function<void(piece_index_t, sha256_hash const&, storage_error const&)> handler) override;
 		void async_move_storage(storage_index_t storage, std::string p, move_flags_t flags
 			, std::function<void(status_t, std::string const&, storage_error const&)> handler) override;
 		void async_release_files(storage_index_t storage
