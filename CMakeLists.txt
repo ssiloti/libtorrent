@@ -299,6 +299,7 @@ set(sources
 	fingerprint
 	gzip
 	hasher
+	hash_picker
 	hex
 	http_connection
 	http_stream
