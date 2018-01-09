@@ -86,7 +86,7 @@ namespace libtorrent {
 		if (!atp.uuid.empty()) ret["uuid"] = atp.uuid;
 #endif
 
-		ret["info-hash"] = atp.info_hash;
+		ret["info-hash"] = atp.info_hash.v1;
 
 		if (atp.ti)
 		{
