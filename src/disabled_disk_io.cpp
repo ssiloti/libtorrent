@@ -102,7 +102,7 @@ namespace libtorrent {
 	}
 
 	void disabled_disk_io::async_hash(storage_index_t
-		, piece_index_t piece, disk_job_flags_t
+		, piece_index_t piece, span<sha256_hash>, disk_job_flags_t
 		, std::function<void(piece_index_t, sha1_hash const&, storage_error const&)> handler)
 	{
 		post(m_ios, [=]() { handler(piece, sha1_hash{}, storage_error{}); });
@@ -112,7 +112,7 @@ namespace libtorrent {
 		, disk_job_flags_t
 		, std::function<void(piece_index_t, sha256_hash const&, storage_error const&)> handler)
 	{
-		m_ios.post([=]() { handler(piece, sha256_hash{}, storage_error{}); });
+		post(m_ios, [=]() { handler(piece, sha256_hash{}, storage_error{}); });
 	}
 
 	void disabled_disk_io::async_move_storage(storage_index_t
