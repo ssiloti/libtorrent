@@ -813,19 +813,6 @@ ip_ok:
 		// cache this node and wait until some node fails
 		// and then replace it.
 
-		j = std::find_if(rb.begin(), rb.end()
-			, [&e](node_entry const& ne) { return ne.id == e.id; });
-
-		// if the node is already in the replacement bucket
-		// just return.
-		if (j != rb.end())
-		{
-			// if the IP address matches, it's the same node
-			// make sure it's marked as pinged
-			if (j->ep() == e.ep()) j->set_pinged();
-			return node_added;
-		}
-
 		if (int(rb.size()) >= m_bucket_size)
 		{
 			// if the replacement bucket is full, remove the oldest entry
