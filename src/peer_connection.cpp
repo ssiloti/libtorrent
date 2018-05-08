@@ -5204,7 +5204,7 @@ namespace libtorrent {
 				// once we start using generalized lambda capture from C++14
 				auto hashes = std::make_shared<std::vector<sha256_hash>>();
 				if (t->torrent_file().info_hash().has_v2())
-					hashes->resize((t->torrent_file().files().piece_size2(r.piece) + default_block_size - 1) / default_block_size);
+					hashes->resize((t->torrent_file().orig_files().piece_size2(r.piece) + default_block_size - 1) / default_block_size);
 
 				m_disk_thread.async_hash(t->storage(), r.piece, *hashes, {}
 					, [conn, hashes](piece_index_t p, sha1_hash const& ph, storage_error const& e) {
