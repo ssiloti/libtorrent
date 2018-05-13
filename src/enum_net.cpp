@@ -464,20 +464,15 @@ int _System __libsocket_sysctl(int* mib, u_int namelen, void *oldp, size_t *oldl
 	{
 		// all 3 addresses needs to belong to the same family
 		if (a1.is_v4() != a2.is_v4()) return false;
-		if (a1.is_v4() != mask.is_v4()) return false;
+		if (a1.is_v4() && !mask.is_v4()) return false;
 
 #if TORRENT_USE_IPV6
 		if (a1.is_v6())
 		{
+			if (a1.to_v6().scope_id() != a2.to_v6().scope_id()) return false;
 			address_v6::bytes_type b1 = a1.to_v6().to_bytes();
 			address_v6::bytes_type b2 = a2.to_v6().to_bytes();
-			address_v6::bytes_type m = mask.to_v6().to_bytes();
-			for (std::size_t i = 0; i < b1.size(); ++i)
-			{
-				b1[i] &= m[i];
-				b2[i] &= m[i];
-			}
-			return std::memcmp(b1.data(), b2.data(), b1.size()) == 0;
+			return std::memcmp(b1.data(), b2.data(), 8) == 0;
 		}
 #endif
 		return (a1.to_v4().to_ulong() & mask.to_v4().to_ulong())
