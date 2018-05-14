@@ -105,6 +105,10 @@ upnp::upnp(io_service& ios
 	, m_resolver(ios)
 	, m_socket(udp::endpoint(make_address_v4("239.255.255.250"
 		, ignore_error), 1900))
+#ifdef TORRENT_USE_IPV6
+	, m_socket6(udp::endpoint(make_address_v6("ff02::c"
+		, ignore_error), 1900))
+#endif
 	, m_broadcast_timer(ios)
 	, m_refresh_timer(ios)
 	, m_map_timer(ios)
@@ -122,6 +126,10 @@ void upnp::start()
 	error_code ec;
 	m_socket.open(std::bind(&upnp::on_reply, self(), _1, _2)
 		, m_refresh_timer.get_io_service(), ec);
+#ifdef TORRENT_USE_IPV6
+	m_socket6.open(std::bind(&upnp::on_reply, self(), _1, _2)
+		, m_refresh_timer.get_io_service(), ec);
+#endif
 
 	m_mappings.reserve(10);
 }
@@ -170,12 +178,27 @@ void upnp::discover_device_impl()
 		"MX:3\r\n"
 		"\r\n\r\n";
 
+#ifdef TORRENT_USE_IPV6
+	static const char msearch6[] =
+		"M-SEARCH * HTTP/1.1\r\n"
+		"HOST: [ff02::c]:1900\r\n"
+		"ST:upnp:rootdevice\r\n"
+		"MAN:\"ssdp:discover\"\r\n"
+		"MX:3\r\n"
+		"\r\n\r\n";
+#endif
+
 	error_code ec;
 #ifdef TORRENT_DEBUG_UPNP
 	// simulate packet loss
 	if (m_retry_count & 1)
 #endif
-	m_socket.send(msearch, sizeof(msearch) - 1, ec);
+	{
+		m_socket.send(msearch, sizeof(msearch) - 1, ec);
+#ifdef TORRENT_USE_IPV6
+		m_socket6.send(msearch6, sizeof(msearch6) - 1, ec);
+#endif
+	}
 
 	if (ec)
 	{
@@ -755,33 +778,63 @@ void upnp::create_port_mapping(http_connection& c, rootdevice& d
 		return;
 	}
 
-	char const* soap_action = "AddPortMapping";
+	auto const& m = d.mapping[i];
 
 	error_code ec;
-	std::string local_endpoint = print_address(c.socket().local_endpoint(ec).address());
+	auto local_addr = c.socket().local_endpoint(ec).address();
+	std::string local_endpoint = print_address(local_addr);
 
-	char soap[2048];
-	std::snprintf(soap, sizeof(soap), "<?xml version=\"1.0\"?>\n"
-		"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
-		"s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
-		"<s:Body><u:%s xmlns:u=\"%s\">"
-		"<NewRemoteHost></NewRemoteHost>"
-		"<NewExternalPort>%u</NewExternalPort>"
-		"<NewProtocol>%s</NewProtocol>"
-		"<NewInternalPort>%u</NewInternalPort>"
-		"<NewInternalClient>%s</NewInternalClient>"
-		"<NewEnabled>1</NewEnabled>"
-		"<NewPortMappingDescription>%s</NewPortMappingDescription>"
-		"<NewLeaseDuration>%u</NewLeaseDuration>"
-		"</u:%s></s:Body></s:Envelope>"
-		, soap_action, d.service_namespace.c_str(), d.mapping[i].external_port
-		, to_string(d.mapping[i].protocol)
-		, d.mapping[i].local_ep.port()
-		, local_endpoint.c_str()
-		, m_user_agent.c_str()
-		, d.lease_duration, soap_action);
+	if (local_addr.is_v4())
+	{
+		char const* soap_action = "AddPortMapping";
 
-	post(d, soap, soap_action);
+		char soap[2048];
+		std::snprintf(soap, sizeof(soap), "<?xml version=\"1.0\"?>\n"
+			"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
+			"s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
+			"<s:Body><u:%s xmlns:u=\"%s\">"
+			"<NewRemoteHost></NewRemoteHost>"
+			"<NewExternalPort>%u</NewExternalPort>"
+			"<NewProtocol>%s</NewProtocol>"
+			"<NewInternalPort>%u</NewInternalPort>"
+			"<NewInternalClient>%s</NewInternalClient>"
+			"<NewEnabled>1</NewEnabled>"
+			"<NewPortMappingDescription>%s</NewPortMappingDescription>"
+			"<NewLeaseDuration>%u</NewLeaseDuration>"
+			"</u:%s></s:Body></s:Envelope>"
+			, soap_action, d.service_namespace.c_str(), d.mapping[i].external_port
+			, to_string(d.mapping[i].protocol)
+			, d.mapping[i].local_ep.port()
+			, local_endpoint.c_str()
+			, m_user_agent.c_str()
+			, d.lease_duration, soap_action);
+
+		post(d, soap, soap_action);
+	}
+	else
+	{
+		char const* soap_action = "AddPinhole";
+
+		char soap[2048];
+		std::snprintf(soap, sizeof(soap), "<?xml version=\"1.0\"?>\n"
+			"<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
+			"s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">"
+			"<s:Body><u:%s xmlns:u=\"%s\">"
+			"<RemoteHost></RemoteHost>"
+			"<RemotePort>%u</RemotePort>"
+			"<Protocol>%s</Protocol>"
+			"<InternalPort>%u</InternalPort>"
+			"<InternalClient>%s</InternalClient>"
+			"<LeaseTime>%u</LeaseTime>"
+			"</u:%s></s:Body></s:Envelope>"
+			, soap_action, d.service_namespace.c_str(), d.mapping[i].external_port
+			, to_string(d.mapping[i].protocol)
+			, d.mapping[i].local_ep.port()
+			, local_endpoint.c_str()
+			, d.lease_duration, soap_action);
+
+		post(d, soap, soap_action);
+	}
 }
 
 void upnp::next(rootdevice& d, port_mapping_t const i)
@@ -852,7 +905,8 @@ void upnp::update_map(rootdevice& d, port_mapping_t const i)
 			, std::bind(&upnp::create_port_mapping, self(), _1, std::ref(d), i));
 
 		d.upnp_connection->start(d.hostname, d.port
-			, seconds(10), 1, nullptr, false, 5, m.local_ep.address());
+			, seconds(10), 1, nullptr, false, 5
+			, m.local_ep.address().is_unspecified() ? boost::optional<address>() : m.local_ep.address());
 	}
 	else if (m.act == portmap_action::del)
 	{
@@ -863,7 +917,8 @@ void upnp::update_map(rootdevice& d, port_mapping_t const i)
 				, std::ref(d), i, _4), true, default_max_bottled_buffer_size
 			, std::bind(&upnp::delete_port_mapping, self(), std::ref(d), i));
 		d.upnp_connection->start(d.hostname, d.port
-			, seconds(10), 1, nullptr, false, 5, m.local_ep.address());
+			, seconds(10), 1, nullptr, false, 5
+			, m.local_ep.address().is_unspecified() ? boost::optional<address>() : m.local_ep.address());
 	}
 
 	m.act = portmap_action::none;
@@ -1132,6 +1187,9 @@ void upnp::disable(error_code const& ec)
 	m_refresh_timer.cancel(e);
 	m_map_timer.cancel(e);
 	m_socket.close();
+#ifdef TORRENT_USE_IPV6
+	m_socket6.close();
+#endif
 }
 
 void find_error_code(int const type, string_view string, error_code_parse_state& state)
@@ -1336,6 +1394,12 @@ void upnp::on_upnp_map_response(error_code const& e
 	{
 		d.upnp_connection->close();
 		d.upnp_connection.reset();
+	}
+
+	if (e == boost::asio::error::address_family_not_supported)
+	{
+		d.mapping[mapping].act = portmap_action::none;
+		return;
 	}
 
 	if (e && e != boost::asio::error::eof)
@@ -1629,6 +1693,9 @@ void upnp::close()
 	m_map_timer.cancel(ec);
 	m_closing = true;
 	m_socket.close();
+#ifdef TORRENT_USE_IPV6
+	m_socket6.close();
+#endif
 
 	for (auto& dev : m_devices)
 	{

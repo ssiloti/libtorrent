@@ -135,6 +135,17 @@ void http_connection::get(std::string const& url, time_duration timeout, int pri
 	std::tie(protocol, auth, hostname, port, path)
 		= parse_url_components(url, ec);
 
+#if 0
+	address_v6::from_string(hostname, ec);
+	if (!ec)
+	{
+		// restore the brackets if the hostname is an IPv6 address
+		hostname.insert(hostname.begin(), '[');
+		hostname.push_back(']');
+	}
+	ec.clear();
+#endif
+
 	if (auth.empty()) auth = auth_;
 
 	m_auth = auth;
@@ -527,6 +538,8 @@ void http_connection::on_resolve(error_code const& e
 	// only connect to addresses of the same family
 	if (m_bind_addr)
 	{
+		auto bind_addr = *m_bind_addr;
+		//if (bind_addr.is_v6()) DebugBreak();
 		auto new_end = std::partition(m_endpoints.begin(), m_endpoints.end()
 			, [this] (tcp::endpoint const& ep)
 		{
@@ -545,7 +558,7 @@ void http_connection::on_resolve(error_code const& e
 		m_endpoints.erase(new_end, m_endpoints.end());
 		if (m_endpoints.empty())
 		{
-			callback(error_code(boost::system::errc::address_family_not_supported, generic_category()));
+			callback(error_code(boost::asio::error::address_family_not_supported));
 			close();
 			return;
 		}

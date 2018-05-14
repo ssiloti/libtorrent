@@ -337,6 +337,9 @@ private:
 	// the udp socket used to send and receive
 	// multicast messages on the network
 	broadcast_socket m_socket;
+#ifdef TORRENT_USE_IPV6
+	broadcast_socket m_socket6;
+#endif
 
 	// used to resend udp packets in case
 	// they time out

@@ -102,8 +102,7 @@ namespace libtorrent {
 				ec = errors::expected_close_bracket_in_address;
 				goto exit;
 			}
-			// strip the brackets
-			hostname.assign(start + 1, port_pos);
+			hostname.assign(start, port_pos + 1);
 			port_pos = std::find(port_pos, url.end(), ':');
 		}
 		else
