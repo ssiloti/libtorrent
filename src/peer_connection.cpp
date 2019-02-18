@@ -5206,7 +5206,7 @@ namespace libtorrent {
 				if (t->torrent_file().info_hash().has_v2())
 					hashes->resize((t->torrent_file().orig_files().piece_size2(r.piece) + default_block_size - 1) / default_block_size);
 
-				m_disk_thread.async_hash(t->storage(), r.piece, *hashes, {}
+				m_disk_thread.async_hash(t->storage(), r.piece, *hashes, flags
 					, [conn, hashes](piece_index_t p, sha1_hash const& ph, storage_error const& e) {
 						conn->wrap(&peer_connection::on_seed_mode_hashed, p, ph, *hashes, e); });
 
