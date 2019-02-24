@@ -287,7 +287,7 @@ namespace {
 			iovec_t b = {buffer.get(), len};
 			int const ret = st->readv(m_settings, b, piece, offset, error);
 			if (ret > 0)
-				ph.update(b.first(std::size_t(ret)));
+				ph.update(b.first(ret));
 
 			sha256_hash const hash = ph.final();
 
