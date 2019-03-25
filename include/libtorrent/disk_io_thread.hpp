@@ -580,7 +580,6 @@ namespace aux {
 
 #if TORRENT_USE_ASSERTS
 		int m_magic = 0x1337;
-		std::atomic<bool> m_jobs_aborted{false};
 #endif
 	};
 }

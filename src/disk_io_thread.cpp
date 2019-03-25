@@ -286,10 +286,7 @@ constexpr disk_job_flags_t disk_interface::cache_hit;
 
 		// if there are no disk threads, we can't wait for the jobs here, because
 		// we'd stall indefinitely
-		if (no_threads)
-		{
-			abort_jobs();
-		}
+		if (no_threads) abort_jobs();
 
 		// even if there are no threads it doesn't hurt to abort the pools
 		// it prevents threads from being started after an abort which is a good
@@ -3211,7 +3208,6 @@ constexpr disk_job_flags_t disk_interface::cache_hit;
 	void disk_io_thread::abort_jobs()
 	{
 		TORRENT_ASSERT(m_magic == 0x1337);
-		TORRENT_ASSERT(!m_jobs_aborted.exchange(true));
 
 		jobqueue_t jobs;
 		m_disk_cache.clear(jobs);
